@@ -1584,6 +1584,34 @@ pub struct Auth {
     /// Used for existing sessions when migrating to add expires_at column
     #[env_config(name = "ZO_SESSION_DEFAULT_EXPIRY_HOURS", default = 24)]
     pub session_default_expiry_hours: i64,
+    #[env_config(name = "ZO_OIDC_ENABLED", default = false)]
+    pub oidc_enabled: bool,
+    #[env_config(
+        name = "ZO_OIDC_ISSUER_URL",
+        default = "",
+        help = "OIDC issuer URL, e.g. https://keycloak.example.com/realms/myrealm"
+    )]
+    pub oidc_issuer_url: String,
+    #[env_config(name = "ZO_OIDC_CLIENT_ID", default = "")]
+    pub oidc_client_id: String,
+    #[env_config(name = "ZO_OIDC_CLIENT_SECRET", default = "")]
+    pub oidc_client_secret: String,
+    #[env_config(
+        name = "ZO_OIDC_REDIRECT_URL",
+        default = "",
+        help = "Callback URL, e.g. http://localhost:5080/config/oidc/callback"
+    )]
+    pub oidc_redirect_url: String,
+    #[env_config(name = "ZO_OIDC_DEFAULT_ORG", default = "default")]
+    pub oidc_default_org: String,
+    #[env_config(
+        name = "ZO_OIDC_DEFAULT_ROLE",
+        default = "admin",
+        help = "Role for auto-provisioned users: admin, editor, viewer, user"
+    )]
+    pub oidc_default_role: String,
+    #[env_config(name = "ZO_OIDC_SCOPES", default = "openid profile email")]
+    pub oidc_scopes: String,
 }
 
 #[derive(Serialize, EnvConfig, Default)]

@@ -386,7 +386,8 @@ pub async fn zo_config_bootstrap() -> impl IntoResponse {
     #[cfg(feature = "enterprise")]
     let block_features = block_feature_for_report_failure().await;
 
-    let sso_enabled = enterprise_value!(false, dex_cfg.dex_enabled, block_features);
+    let oidc_sso = openobserve_api_common::auth::oidc::is_enabled();
+    let sso_enabled = enterprise_value!(oidc_sso, dex_cfg.dex_enabled || oidc_sso, block_features);
     let native_login_enabled = enterprise_value!(true, dex_cfg.native_login_enabled);
     let custom_logo_text = enterprise_value!(
         "".to_string(),

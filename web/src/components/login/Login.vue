@@ -281,7 +281,7 @@ export default defineComponent({
     });
 
     const showSSO = computed(() => {
-      return store.state.zoConfig.sso_enabled && config.isEnterprise === "true";
+      return store.state.zoConfig.sso_enabled;
     });
 
     const showInternalLogin = computed(() => {
@@ -306,12 +306,16 @@ export default defineComponent({
 
     const loginWithSSo = async () => {
       try {
-        authService.get_dex_login().then((res) => {
-          if (res) {
-            window.location.href = withSignupHint(res);
-            return;
-          }
-        });
+        if (config.isEnterprise === "true") {
+          authService.get_dex_login().then((res) => {
+            if (res) {
+              window.location.href = withSignupHint(res);
+              return;
+            }
+          });
+        } else {
+          window.location.href = authService.get_oidc_login_url();
+        }
       } catch (error) {
         console.error("Error during redirection:");
       }

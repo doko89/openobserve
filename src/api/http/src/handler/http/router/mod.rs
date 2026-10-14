@@ -32,8 +32,8 @@ use openobserve_api_management::request::cloud;
 use openobserve_api_management::request::profiling;
 use openobserve_api_management::request::{
     alerts, announcements, authz, dashboards, db_monitoring, downtimes, folders, ingest_rejections,
-    kv, metrics_usage, model_pricing, organization, query_history, rum_analytics, service_accounts,
-    short_url, slos, sourcemaps, status, status_pages, stream, synthetics, users,
+    kv, metrics_usage, model_pricing, oidc, organization, query_history, rum_analytics,
+    service_accounts, short_url, slos, sourcemaps, status, status_pages, stream, synthetics, users,
 };
 use openobserve_api_pipelines::request::{enrichment_table, functions, pipeline, pipelines};
 use openobserve_api_search::{
@@ -857,6 +857,8 @@ pub fn config_routes() -> Router {
         .route_layer(middleware::from_fn(auth_middleware))
         .route("/", get(status::zo_config_bootstrap))
         .route("/logout", get(status::logout))
+        .route("/oidc/login", get(oidc::oidc_login))
+        .route("/oidc/callback", get(oidc::oidc_callback))
 }
 
 #[cfg(feature = "enterprise")]

@@ -24,6 +24,9 @@ const auth = {
     const res = await http().get("/config/dex_login");
     return res.data;
   },
+  get_oidc_login_url: () => {
+    return "/config/oidc/login";
+  },
   refresh_token: async () => {
     const res = await http().get("/config/dex_refresh");
     return res.data;
