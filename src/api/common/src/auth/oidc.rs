@@ -249,7 +249,8 @@ pub async fn validate_id_token(id_token: &str) -> Result<OidcClaims, anyhow::Err
     let decoding_key = jwk_to_decoding_key(jwk)?;
 
     let mut validation = Validation::new(header.alg);
-    validation.set_issuer(&[&cfg.auth.oidc_issuer_url]);
+    let issuer = cfg.auth.oidc_issuer_url.trim_end_matches('/');
+    validation.set_issuer(&[issuer]);
     validation.validate_aud = true;
     validation.set_audience(&[&cfg.auth.oidc_client_id]);
 
@@ -345,17 +346,23 @@ mod tests {
 
     #[test]
     fn test_jwk_to_decoding_key_rsa() {
+        let modulus = "r49oCrKGzzEqxIdRI1lzi04_TGgwJhcS8cKTIHBnUTLg7_Drh1PHvJCrzcdSFLi5rOaxgf-_5Tq2Oglp1mFUMS9OVVcuSKqKgKuIxvnZFbiNU8Zn8Xlc0stDVHkS9tzbXfuAXYN8oJk21vTqF_W54w96UR9IxI3EMmAokQLWDfK104s2S7QRGFkrd46nqvHGvKCep3nqp7Pq_8BUiYVf4UMMv5-XxH_BvLw4QS1Ouy2gy8_ZyBuqPK_mIwiBlcEZpWNb2-q_34d14dnjMwzdFFO39Sjaqeis_gP8UwdAHdL8Ouu34afdb3ZywpoFZAaOCvf3cVOxRAIjD-K9bSi9FQ";
         let jwk = Jwk {
             kty: "RSA".to_string(),
             kid: Some("test".to_string()),
-            n: Some("modulus".to_string()),
+            n: Some(modulus.to_string()),
             e: Some("AQAB".to_string()),
             crv: None,
             x: None,
             y: None,
         };
-        // Invalid modulus will fail, but at least it should take the RSA path
-        assert!(jwk_to_decoding_key(&jwk).is_err());
+        assert!(jwk_to_decoding_key(&jwk).is_ok());
+
+        let broken = Jwk {
+            n: Some("!!!".to_string()),
+            ..jwk
+        };
+        assert!(jwk_to_decoding_key(&broken).is_err());
     }
 
     #[test]
