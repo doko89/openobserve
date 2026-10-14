@@ -165,6 +165,10 @@ pub async fn oidc_callback(jar: CookieJar, Query(query): Query<OidcCallbackQuery
         }
     };
 
+    if claims.email_verified == Some(false) {
+        return redirect_to_login("Email is not verified with the identity provider".to_string());
+    }
+
     let email = match claims.email.as_deref().filter(|e| !e.is_empty()) {
         Some(e) => e.to_lowercase(),
         None => match claims
@@ -185,12 +189,30 @@ pub async fn oidc_callback(jar: CookieJar, Query(query): Query<OidcCallbackQuery
         }
     };
 
-    set_auth_cookie_and_redirect(&email, &password)
+    set_auth_cookie_and_redirect(&email, &password).await
 }
 
 async fn ensure_oidc_user(email: &str, claims: &oidc::OidcClaims) -> Result<String, anyhow::Error> {
+    let first_name = claims
+        .given_name
+        .clone()
+        .or_else(|| claims.name.clone())
+        .unwrap_or_default();
+    let last_name = claims.family_name.clone().unwrap_or_default();
+
     if let Ok(existing) = user::get_db_user(email).await {
-        return Ok(existing.password);
+        let password = generate_random_string(32);
+        let hashed_password = get_hash(&password, &existing.salt);
+        user::update(
+            &existing.email,
+            &first_name,
+            &last_name,
+            &hashed_password,
+            existing.password_ext.clone(),
+            true,
+        )
+        .await?;
+        return Ok(password);
     }
 
     let cfg = get_config();
@@ -199,19 +221,13 @@ async fn ensure_oidc_user(email: &str, claims: &oidc::OidcClaims) -> Result<Stri
         "viewer" => UserRole::Viewer,
         "editor" => UserRole::Editor,
         "user" => UserRole::User,
-        _ => UserRole::Admin,
+        "admin" => UserRole::Admin,
+        _ => UserRole::Viewer,
     };
 
     let password = generate_random_string(32);
     let salt = generate_random_string(8);
     let hashed_password = get_hash(&password, &salt);
-
-    let first_name = claims
-        .given_name
-        .clone()
-        .or_else(|| claims.name.clone())
-        .unwrap_or_default();
-    let last_name = claims.family_name.clone().unwrap_or_default();
 
     let db_user = DBUser {
         email: email.to_string(),
@@ -236,7 +252,7 @@ async fn ensure_oidc_user(email: &str, claims: &oidc::OidcClaims) -> Result<Stri
     Ok(password)
 }
 
-fn set_auth_cookie_and_redirect(email: &str, password: &str) -> Response {
+async fn set_auth_cookie_and_redirect(email: &str, password: &str) -> Response {
     let cfg = get_config();
 
     let access_token = format!(
@@ -250,7 +266,10 @@ fn set_auth_cookie_and_redirect(email: &str, password: &str) -> Response {
     let encoded_tokens = base64::engine::general_purpose::STANDARD.encode(tokens.to_string());
 
     let mut auth_cookie = Cookie::new(AUTH_TOKENS_COOKIE, encoded_tokens);
-    auth_cookie.set_max_age(time::Duration::seconds(cfg.auth.cookie_max_age));
+    auth_cookie.set_expires(
+        time::OffsetDateTime::now_utc()
+            + time::Duration::seconds(db::password_policy::cookie_max_age_secs().await),
+    );
     auth_cookie.set_http_only(true);
     auth_cookie.set_secure(cfg.auth.cookie_secure_only);
     auth_cookie.set_path("/");
